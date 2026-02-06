@@ -1,0 +1,4 @@
+- problem logging
+- AI reflection
+- Growth Dashboard
+- Personalized Recommendations
