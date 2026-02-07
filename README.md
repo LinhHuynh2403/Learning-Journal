@@ -51,6 +51,6 @@ OPENAI_API_KEY=<your_openai_api_key>
 
 ### 6. Run the backend
 ```bash 
-uvicorn main:app --reload
+uvicorn backend.main:app --reload
 ```
 
