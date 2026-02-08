@@ -89,4 +89,44 @@ async def init_db() -> None:
             """
         )
 
+
+        # LeetCode sync state (stores last sync time)
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS leetcode_sync_state (
+                user_id INTEGER PRIMARY KEY,
+                last_sync_at TEXT DEFAULT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            """
+        )
+
+        # LeetCode submissions (for pacing / streaks / recency)
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                problem_id INTEGER NOT NULL,
+                title_slug TEXT NOT NULL,
+                title TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'accepted',
+                submitted_at INTEGER NOT NULL, -- unix seconds (from LeetCode)
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY(problem_id) REFERENCES problems(id) ON DELETE CASCADE
+            );
+            """
+        )
+
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_user_submissions_user_time ON user_submissions(user_id, submitted_at DESC);"
+        )
+        await db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uniq_user_submissions ON user_submissions(user_id, title_slug, submitted_at);"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_user_submissions_problem ON user_submissions(user_id, problem_id);"
+        )
+
         await db.commit()

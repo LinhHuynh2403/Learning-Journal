@@ -2,7 +2,9 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import List, Optional, Literal
 
-
+class LeetCodeLinkRequest(BaseModel):
+    username: str
+    
 # ---------- Auth ----------
 class UserCreate(BaseModel):
     email: EmailStr
@@ -47,6 +49,21 @@ class ManualSyncIn(BaseModel):
     solved_slugs: List[str] = []
     attempted_slugs: List[str] = []
 
+class LeetCodeMeOut(BaseModel):
+    linked: bool
+    username: Optional[str] = None
+    last_sync_at: Optional[str] = None
+    solved_last_7_days: int = 0
+    solved_last_30_days: int = 0
+
+
+class SyncResponse(BaseModel):
+    ok: bool
+    username: str
+    synced_submissions: int
+    updated_statuses: int
+    last_sync_at: str
+
 
 class ProblemOut(BaseModel):
     slug: str
@@ -66,7 +83,7 @@ class RecommendResponse(BaseModel):
     recommendations: List[ProblemOut]
 
 
-# ---------- Mentor (OpenAI) ----------
+# ---------- Mentor (Ollama) ----------
 class MentorChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     weak_topics: List[str] = []

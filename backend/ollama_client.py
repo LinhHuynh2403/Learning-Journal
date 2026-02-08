@@ -4,7 +4,21 @@ import httpx
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
+OLLAMA_EMBED_MODEL = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
+async def get_embedding(text: str) -> list[float]:
+    """
+    Calls Ollama /api/embeddings to turn text into a vector.
+    Use a dedicated embedding model like 'nomic-embed-text'.
+    """
+    url = f"{OLLAMA_BASE_URL}/api/embeddings"
+    payload = {"model": OLLAMA_EMBED_MODEL, "prompt": text}
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(url, json=payload)
+        r.raise_for_status()
+        data = r.json()
+        return data["embedding"]
 
 async def ollama_chat_json(system: str, user: str) -> dict:
     """

@@ -206,3 +206,81 @@ async def get_user_topic_stats(db: aiosqlite.Connection, user_id: int) -> Dict:
             target[t] = target.get(t, 0) + 1
 
     return {"solved": solved, "attempted": attempted}
+
+
+# ---------- LeetCode sync state ----------
+async def set_leetcode_last_sync(db: aiosqlite.Connection, user_id: int) -> None:
+    await db.execute(
+        """
+        INSERT INTO leetcode_sync_state (user_id, last_sync_at)
+        VALUES (?, datetime('now','localtime'))
+        ON CONFLICT(user_id) DO UPDATE SET
+            last_sync_at=datetime('now','localtime');
+        """,
+        (user_id,),
+    )
+    await db.commit()
+
+
+async def get_leetcode_last_sync(db: aiosqlite.Connection, user_id: int) -> Optional[str]:
+    cur = await db.execute("SELECT last_sync_at FROM leetcode_sync_state WHERE user_id = ?", (user_id,))
+    row = await cur.fetchone()
+    return row["last_sync_at"] if row else None
+
+
+# ---------- LeetCode submissions ----------
+async def insert_user_submission(
+    db: aiosqlite.Connection,
+    user_id: int,
+    problem_id: int,
+    title_slug: str,
+    title: str,
+    status: str,
+    submitted_at: int,
+) -> bool:
+    """Insert a submission row if not already present."""
+    cur = await db.execute(
+        "SELECT 1 FROM user_submissions WHERE user_id=? AND title_slug=? AND submitted_at=? LIMIT 1;",
+        (user_id, title_slug, submitted_at),
+    )
+    if await cur.fetchone():
+        return False
+
+    await db.execute(
+        """
+        INSERT INTO user_submissions (user_id, problem_id, title_slug, title, status, submitted_at)
+        VALUES (?, ?, ?, ?, ?, ?);
+        """,
+        (user_id, problem_id, title_slug, title, status, submitted_at),
+    )
+    await db.commit()
+    return True
+
+
+async def get_user_submission_history(db: aiosqlite.Connection, user_id: int, limit: int = 200) -> List[Dict]:
+    cur = await db.execute(
+        """
+        SELECT title_slug AS slug, title, status, submitted_at, problem_id
+        FROM user_submissions
+        WHERE user_id = ?
+        ORDER BY submitted_at DESC
+        LIMIT ?;
+        """,
+        (user_id, limit),
+    )
+    rows = await cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+async def get_user_submissions_between(db: aiosqlite.Connection, user_id: int, start_ts: int, end_ts: int) -> List[Dict]:
+    cur = await db.execute(
+        """
+        SELECT title_slug AS slug, title, status, submitted_at, problem_id
+        FROM user_submissions
+        WHERE user_id = ? AND submitted_at BETWEEN ? AND ?
+        ORDER BY submitted_at DESC;
+        """,
+        (user_id, start_ts, end_ts),
+    )
+    rows = await cur.fetchall()
+    return [dict(r) for r in rows]
